@@ -10,7 +10,7 @@ namespace Unite
     {
 		private Sequence _sequence;
 
-        [Header("¶¯»­ÁĞ±í")]
+        [Header("åŠ¨ç”»åˆ—è¡¨")]
         public List<AdditionalAnimation> additionalAnimations = new List<AdditionalAnimation>();
 
         public enum AnimationType
@@ -20,7 +20,6 @@ namespace Unite
             Scale,
             TextFade,
             ImageFade,
-            SpriteColor
         }
 
         public enum AdditionalAnimationType
@@ -30,20 +29,23 @@ namespace Unite
             Scale,
             TextFade,
             ImageFade,
-            SpriteColor
         }
 
         [System.Serializable]
         public class AdditionalAnimation
         {
+            public enum FadeType
+            {
+                FadeIn = 0, FadeOut,
+            }
             public AdditionalAnimationType type;
             public Vector3 startval;
             public Vector3 endval;
             public float duration;
             public Ease ease;
+            public FadeType fadeType;
             public Text text;
             public Image image;
-            public Sprite imageSprite;
             public SpriteRenderer spriteRenderer;
             public Color colorToChange;
             public Color textColor = Color.white;
@@ -83,7 +85,7 @@ namespace Unite
                     case AdditionalAnimationType.TextFade:
                         if (additionalAnimation.text != null && !string.IsNullOrEmpty(additionalAnimation.text.text))
                         {
-                            Text text = additionalAnimation.text;
+                            var text = additionalAnimation.text;
                             text.color = additionalAnimation.textColor;
                             _sequence.Join(text.DOFade(0f, additionalAnimation.duration / 2f))
                                 .AppendCallback(() =>
@@ -94,32 +96,30 @@ namespace Unite
                         }
                         break;
                     case AdditionalAnimationType.ImageFade:
-                        if (additionalAnimation.image != null && additionalAnimation.imageSprite != null)
+                        if (additionalAnimation.image != null)
                         {
-                            Image image = additionalAnimation.image;
+                            var image = additionalAnimation.image;
                             image.color = Color.white;
-                            _sequence.Join(image.DOFade(0f, additionalAnimation.duration / 2f))
-                                .AppendCallback(() =>
-                                {
-                                    image.sprite = additionalAnimation.imageSprite;
-                                })
-                                .Join(image.DOFade(1f, additionalAnimation.duration / 2f));
-                        }
-                        break;
-                    case AdditionalAnimationType.SpriteColor:
-                        if (additionalAnimation.spriteRenderer != null)
-                        {
-                            SpriteRenderer spriteRenderer = additionalAnimation.spriteRenderer;
-                            _sequence.Join(DOTween.To(() => spriteRenderer.color, x => spriteRenderer.color = x, additionalAnimation.colorToChange, additionalAnimation.duration));
+                            switch (additionalAnimation.fadeType)
+                            {
+                                case AdditionalAnimation.FadeType.FadeIn:
+                                    var color = image.color;
+                                    color = new Color(color.r, color.g, color.b, 0);
+                                    _sequence.Join(image.DOFade(1f, additionalAnimation.duration));
+                                    break;
+                                case AdditionalAnimation.FadeType.FadeOut:
+                                    _sequence.Join(image.DOFade(0f, additionalAnimation.duration));
+                                    break;
+                            }
                         }
                         break;
                     default:
-                        Debug.LogWarning("ÎŞĞ§µÄ¶¯»­ÀàĞÍ: " + additionalAnimation.type);
+                        Debug.LogWarning("æ— æ•ˆçš„åŠ¨ç”»ç±»å‹: " + additionalAnimation.type);
                         break;
                 }
             }
 
-            // Ìí¼ÓÒ»¸öÑÓÊ±Îª0µÄ¼ä¸ô£¬ÈÃËùÓĞ¶¯»­Í¬Ê±²¥·Å
+            // æ·»åŠ ä¸€ä¸ªå»¶æ—¶ä¸º0çš„é—´éš”ï¼Œè®©æ‰€æœ‰åŠ¨ç”»åŒæ—¶æ’­æ”¾
             _sequence.AppendInterval(0);
         }
     }
@@ -129,6 +129,10 @@ namespace Unite
     {
         private SerializedProperty _animationTypeProp;
         private SerializedProperty _additionalAnimationsProp;
+        private readonly string[] ANIMATION_TYPE = {
+            "ç§»åŠ¨åŠ¨ç”»","æ—‹è½¬åŠ¨ç”»","ç¼©æ”¾åŠ¨ç”»","æ·¡å…¥æ·¡å‡º-æ–‡å­—","æ·¡å…¥æ·¡å‡º-å›¾ç‰‡","Spriteé¢œè‰²"
+
+        };
 
         void OnEnable()
         {
@@ -146,38 +150,38 @@ namespace Unite
             for (int i = 0; i < anim.additionalAnimations.Count; i++)
             {
                 EditorGUILayout.Space();
-                SerializedProperty additionalAnimationProp = _additionalAnimationsProp.GetArrayElementAtIndex(i);
-                SerializedProperty typeProp = additionalAnimationProp.FindPropertyRelative("type");
+                SerializedProperty animProp = _additionalAnimationsProp.GetArrayElementAtIndex(i);
+                SerializedProperty typeProp = animProp.FindPropertyRelative("type");
 
-                EditorGUILayout.LabelField("Ìí¼Ó¶¯»­" + (i + 1).ToString(), EditorStyles.boldLabel);
-                EditorGUILayout.PropertyField(typeProp);
+                var index = (int)anim.additionalAnimations[i].type;
+                EditorGUILayout.LabelField(new GUIContent(ANIMATION_TYPE[index]));
+                ++EditorGUI.indentLevel;
+
+                EditorGUILayout.PropertyField(typeProp, new GUIContent("åŠ¨ç”»ç±»å‹"));
 
                 if (typeProp.enumValueIndex == (int)GenericAnimation.AdditionalAnimationType.Move)
                 {
-                    DrawRotateInspector(additionalAnimationProp);
+                    DrawRotateInspector(animProp);
                 }
                 else if (typeProp.enumValueIndex == (int)GenericAnimation.AdditionalAnimationType.Rotate)
                 {
-                    DrawRotateInspector(additionalAnimationProp);
+                    DrawRotateInspector(animProp);
                 }
                 else if (typeProp.enumValueIndex == (int)GenericAnimation.AdditionalAnimationType.Scale)
                 {
-                    DrawScaleInspector(additionalAnimationProp);
+                    DrawScaleInspector(animProp);
                 }
                 else if (typeProp.enumValueIndex == (int)GenericAnimation.AdditionalAnimationType.TextFade)
                 {
-                    DrawTextFadeInspector(additionalAnimationProp);
+                    DrawTextFadeInspector(animProp);
                 }
                 else if (typeProp.enumValueIndex == (int)GenericAnimation.AdditionalAnimationType.ImageFade)
                 {
-                    DrawImageFadeInspector(additionalAnimationProp);
+                    DrawImageFadeInspector(animProp);
                 }
-                else if (typeProp.enumValueIndex == (int)GenericAnimation.AdditionalAnimationType.SpriteColor)
-                {
-                    DrawSpriteColorInspector(additionalAnimationProp);
-                }
+                --EditorGUI.indentLevel;
 
-                if (GUILayout.Button("É¾³ı¶¯»­"))
+                if (GUILayout.Button("åˆ é™¤åŠ¨ç”»"))
                 {
                     anim.additionalAnimations.RemoveAt(i);
                     serializedObject.ApplyModifiedProperties();
@@ -185,7 +189,7 @@ namespace Unite
                 }
             }
 
-            if (GUILayout.Button("Ìí¼Ó¶¯»­"))
+            if (GUILayout.Button("æ·»åŠ åŠ¨ç”»"))
             {
                 anim.AddAnimation();
                 serializedObject.ApplyModifiedProperties();
@@ -193,7 +197,7 @@ namespace Unite
 
             EditorGUILayout.Space();
 
-            if (GUILayout.Button("¶¯»­Ô¤ÀÀ£¨ÔËĞĞÊ±£©"))
+            if (GUILayout.Button("åŠ¨ç”»é¢„è§ˆï¼ˆè¿è¡Œæ—¶ï¼‰"))
             {
                 anim.Play();
             }
@@ -201,52 +205,52 @@ namespace Unite
             serializedObject.ApplyModifiedProperties();
         }
 
-        private const string LABLE_START_POSISITION     = "ÆğÊ¼Î»ÖÃ";
-        private const string LABLE_END_POSISTION        = "Ä¿±êÎ»ÖÃ";
-        private const string LABLE_DURATION             = "¶¯»­Ê±³¤";
-        private const string LABLE_START_ROTATION       = "ÆğÊ¼½Ç¶È";
-        private const string LABLE_END_ROTATION         = "Ä¿±ê½Ç¶È";
-        private const string LABLE_START_SCALE          = "³õÊ¼´óĞ¡";
-        private const string LABLE_END_SCALE            = "Ä¿±ê´óĞ¡";
-        private const string LABLE_COLOR                = "Ä¿±êÑÕÉ«";
-        private const string LABLE_EASE                 = "»º¶¯º¯Êı";
+        private const string LABLE_START_POSISITION     = "èµ·å§‹ä½ç½®";
+        private const string LABLE_END_POSISTION        = "ç›®æ ‡ä½ç½®";
+        private const string LABLE_DURATION             = "åŠ¨ç”»æ—¶é•¿";
+        private const string LABLE_START_ROTATION       = "èµ·å§‹è§’åº¦";
+        private const string LABLE_END_ROTATION         = "ç›®æ ‡è§’åº¦";
+        private const string LABLE_START_SCALE          = "åˆå§‹å¤§å°";
+        private const string LABLE_END_SCALE            = "ç›®æ ‡å¤§å°";
+        private const string LABLE_COLOR                = "ç›®æ ‡é¢œè‰²";
+        private const string LABLE_EASE                 = "ç¼“åŠ¨å‡½æ•°";
 
-        private void DrawRotateInspector(SerializedProperty additionalAnimationProp)
+        private void DrawRotateInspector(SerializedProperty animProp)
         {
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("startval"), new GUIContent(LABLE_START_ROTATION));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("endval"), new GUIContent(LABLE_END_ROTATION));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("duration"), new GUIContent(LABLE_DURATION));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("ease"), new GUIContent(LABLE_EASE));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("startval"), new GUIContent(LABLE_START_ROTATION));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("endval"), new GUIContent(LABLE_END_ROTATION));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("duration"), new GUIContent(LABLE_DURATION));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("ease"), new GUIContent(LABLE_EASE));
         }
 
-        private void DrawScaleInspector(SerializedProperty additionalAnimationProp)
+        private void DrawScaleInspector(SerializedProperty animProp)
         {
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("startval"), new GUIContent(LABLE_START_SCALE));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("endval"), new GUIContent(LABLE_END_SCALE));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("duration"), new GUIContent(LABLE_DURATION));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("ease"), new GUIContent(LABLE_EASE));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("startval"), new GUIContent(LABLE_START_SCALE));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("endval"), new GUIContent(LABLE_END_SCALE));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("duration"), new GUIContent(LABLE_DURATION));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("ease"), new GUIContent(LABLE_EASE));
         }
 
-        private void DrawTextFadeInspector(SerializedProperty additionalAnimationProp)
+        private void DrawTextFadeInspector(SerializedProperty animProp)
         {
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("text"));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("duration"), new GUIContent(LABLE_DURATION));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("ease"), new GUIContent(LABLE_EASE));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("text"), new GUIContent("ç›®æ ‡æ–‡æœ¬"));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("duration"), new GUIContent(LABLE_DURATION));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("ease"), new GUIContent(LABLE_EASE));
         }
 
-        private void DrawImageFadeInspector(SerializedProperty additionalAnimationProp)
+        private void DrawImageFadeInspector(SerializedProperty animProp)
         {
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("image"));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("imageSprite"));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("duration"), new GUIContent(LABLE_DURATION));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("ease"), new GUIContent(LABLE_EASE));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("image"), new GUIContent("ç›®æ ‡Image"));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("fadeType"), new GUIContent("æ·¡å…¥æ·¡å‡ºç±»å‹"));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("duration"), new GUIContent(LABLE_DURATION));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("ease"), new GUIContent(LABLE_EASE));
         }
 
-        private void DrawSpriteColorInspector(SerializedProperty additionalAnimationProp)
+        private void DrawSpriteColorInspector(SerializedProperty animProp)
         {
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("spriteRenderer"));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("colorToChange"), new GUIContent(LABLE_COLOR));
-            EditorGUILayout.PropertyField(additionalAnimationProp.FindPropertyRelative("duration"), new GUIContent(LABLE_DURATION));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("spriteRenderer"), new GUIContent("ç›®æ ‡Sprite"));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("colorToChange"), new GUIContent(LABLE_COLOR));
+            EditorGUILayout.PropertyField(animProp.FindPropertyRelative("duration"), new GUIContent(LABLE_DURATION));
         }
     }
 }
