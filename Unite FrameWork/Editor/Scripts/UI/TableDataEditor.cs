@@ -12,6 +12,7 @@ namespace Unite.Framework.UI
     {
         TableData table;
         Editor previourEditor;
+        bool childLayoutFoldout = false;
 
         public override void OnInspectorGUI()
         {
@@ -19,19 +20,26 @@ namespace Unite.Framework.UI
             Init();
             table.layoutType = (LayoutType)EditorGUILayout.EnumPopup("布局类型", table.layoutType);
 
-            var selectIndex = table.drawList.index;
-            if (table.data.Count > 0 && selectIndex < table.data.Count)
+            table.drawList.DoLayoutList();
+            DrawChildLayout();
+            DrawSelect();
+        }
+
+        void DrawChildLayout()
+        {
+            childLayoutFoldout = EditorGUILayout.Foldout(childLayoutFoldout, "批量处理列表布局");
+            if (!childLayoutFoldout) return;
+            if (table.data.Count > 1)
             {
-                var layout = table.data[selectIndex].GetComponent<LayoutGroup>();
+                var source = table.data[0].GetComponent<HorizontalOrVerticalLayoutGroup>();
                 SerializedObject serialized = null;
-                switch (table.data[selectIndex].layoutType)
+                if (source is HorizontalLayoutGroup)
                 {
-                    case LayoutType.Horizontal:
-                        serialized = new SerializedObject(layout as HorizontalLayoutGroup);
-                        break;
-                    case LayoutType.Vertical:
-                        serialized = new SerializedObject(layout as VerticalLayoutGroup);
-                        break;
+                    serialized = new SerializedObject(source as HorizontalLayoutGroup);
+                }
+                else if (source is VerticalLayoutGroup)
+                {
+                    serialized = new SerializedObject(source as VerticalLayoutGroup);
                 }
                 if (serialized is null) return;
 
@@ -42,9 +50,21 @@ namespace Unite.Framework.UI
                     EditorGUILayout.PropertyField(field);
                 } while (field.NextVisible(false));
                 serialized.ApplyModifiedProperties();
+
+                foreach (var target in table)
+                {
+                    if (target == source) continue;
+
+                    if (target.TryGetComponent<HorizontalLayoutGroup>(out var horizontal))
+                    {
+                        EditorUtility.CopySerialized(source, horizontal);
+                    }
+                    else if (target.TryGetComponent<VerticalLayoutGroup>(out var vertical))
+                    {
+                        EditorUtility.CopySerialized(source, vertical);
+                    }
+                }
             }
-            table.drawList.DoLayoutList();
-            DrawSelect();
         }
 
         void DrawMap()
@@ -67,10 +87,8 @@ namespace Unite.Framework.UI
 
             var index = table.drawList.index;
             Editor.CreateCachedEditor(table[index], typeof(ListDataEditor), ref previourEditor);
-            ++EditorGUI.indentLevel;
             if (table.propertyFoldout = EditorGUILayout.Foldout(table.propertyFoldout, "属性:" + table[table.drawList.index].name, true))
                 previourEditor.OnInspectorGUI();
-            --EditorGUI.indentLevel;
         }
 
         void Init()

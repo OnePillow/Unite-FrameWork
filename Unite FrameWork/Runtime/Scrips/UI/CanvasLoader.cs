@@ -30,6 +30,22 @@ namespace Unite.Framework.UI
                     break;
             }
         }
+
+        public static void HandleLoad(Transform node, UIRuntime ui)
+        {
+            var content = ui.property.content;
+
+            if (node.TryGetComponent<IDataUIElement>(out var element))
+            {
+                HandleLoad(element, ui.property.content);
+                return;
+            }
+            
+            if (node.TryGetComponent<UIElement>(out var uiElement))
+            {
+
+            }
+        }
     }
 
     public class CanvasLoader : MonoBehaviour, IUIElement
@@ -56,14 +72,15 @@ namespace Unite.Framework.UI
                     Debug.Log("UI " + node.name);
                     var element = elementStack.Pop();
                     Debug.Log(element.property.name + " - " + node.name);
+                    SourceHelper.HandleLoad(node, element);
                     if (node != this.transform 
                         && node.TryGetComponent<IDataUIElement>(out var data)
                         && node.name.Equals(element.property.name))
                     {
-                        SourceHelper.HandleLoad(data, element.property.content);
                         returnFlag = true;
                         return;
                     }
+
                     foreach (var child in element.children)
                     {
                         elementStack.Push(child);
